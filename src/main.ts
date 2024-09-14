@@ -54,14 +54,15 @@ class Lift {
       const liftAnimationPromise = liftEl.animate([
         { transform: `translateY(${-((floor - 1) * (targetFloorEl.offsetHeight + 20))}px)` }
       ], {
-        duration: 2000,
+        duration:Math.abs(floor - this.currentFloor)* 2000,
         easing: 'ease-in-out',
         fill: 'forwards'
       })
-      liftAnimationPromise.onfinish = () => {
+      const onFinishAnimation =() => {
         this.currentFloor = floor;
-        this.animateLift(handleAnimationEnd, liftEl);
+        this.animateLift(handleAnimationEnd.bind(this), liftEl);
       }
+      liftAnimationPromise.onfinish = onFinishAnimation.bind(this)
 
     }
   }
@@ -96,13 +97,10 @@ class Lift {
     animationPromiseLeft.onfinish = () => {
       animationEndCB()
     }
-    animationPromiseRight.onfinish = () => {
-      animationEndCB()
-    }
-    setTimeout(() => {
-      animationPromiseLeft.finish();
-      animationPromiseRight.finish();
-    }, 5000)
+    // setTimeout(() => {
+    //   animationPromiseLeft.finish();
+    //   animationPromiseRight.finish();
+    // }, 5000)
   }
 
   private postCompletion(cb: () => void) {
@@ -251,14 +249,19 @@ class Building {
   private findNearestLift(targetFloor: number): number {
     let nearestLiftIndex = -1;
     let minDistance = Infinity;
+    let liftInCurrentFloor = false;
     this.lifts.forEach((lift, index) => {
       const distance = Math.abs(lift.getCurrentFloor() - targetFloor);
-      console.log({ distance, lift , isRunning: lift.isRunning()})
+      if (distance === 0) {
+        liftInCurrentFloor = true;
+      }
+      console.log({ distance, lift, isRunning: lift.isRunning() })
       if (distance < minDistance && !lift.isRunning()) {
         minDistance = distance;
         nearestLiftIndex = index;
       }
     });
+    if (liftInCurrentFloor && minDistance !== 0) return -1;
     return nearestLiftIndex;
   }
 
@@ -269,11 +272,13 @@ class Building {
       lift.requestToMove(task.floor);
       // this.animateLift();
     } else {
-      this.taskQueue.push(task);
+      this.taskQueue.unshift(task);
+      console.log('No lift available');
     }
   }
 
   private processTask() {
+    console.log({ tq: this.taskQueue.length })
     const dequedTask = this.taskQueue.shift();
     if (dequedTask) {
       this.assignTask(dequedTask);
