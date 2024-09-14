@@ -5,28 +5,34 @@ interface Task {
 
 class Lift {
   private currentFloor: number;
-  private direction: 'up' | 'down' | 'idle';
+  // private direction: 'up' | 'down' | 'idle';
   private _isRunning: boolean;
+  public name: string;
+  private cb: () => void;
 
   constructor(
     currentFloor: number,
-    direction: 'up' | 'down' | 'idle',
+    // direction: 'up' | 'down' | 'idle',
+    name: string,
+    cb: () => void,
   ) {
     this.currentFloor = currentFloor;
-    this.direction = direction;
+    // this.direction = direction;
     this._isRunning = false;
+    this.name = name;
+    this.cb = cb;
   }
 
   public requestToMove(floor: number) {
-    if (floor > this.currentFloor) {
-      this.direction = 'up'
-    } else if (floor < this.currentFloor) {
-      this.direction = 'down'
-    } else {
-      this.direction = 'idle'
-    }
+    // if (floor > this.currentFloor) {
+    //   this.direction = 'up'
+    // } else if (floor < this.currentFloor) {
+    //   this.direction = 'down'
+    // } else {
+    //   this.direction = 'idle'
+    // }
     this._isRunning = true
-    console.log(`Lift is moving to floor ${floor}`)
+    this.sendLiftToFloor(floor);
   }
 
   public isRunning() {
@@ -37,26 +43,74 @@ class Lift {
     return this.currentFloor;
   }
 
-  public sendLiftToFloor(floor: number) {
-    this.animateLift(floor)
-    this.currentFloor = floor;
-    this._isRunning = true;
-  }
-
-  private animateLift(floor: number) {
-    const liftEl = document.getElementById(`lift-${this.currentFloor}`);
+  private sendLiftToFloor(floor: number) {
+    const liftEl = document.getElementById(this.name);
     const targetFloorEl = document.getElementById(`floor-${floor}`);
     if (liftEl && targetFloorEl) {
-      liftEl.style.transform = `translateY(${(floor - 1) * 100}px)`;
-    }
-   }
+      const handleAnimationEnd = () => {
+        this._isRunning = false;
+        this.postCompletion(this.cb);
+      }
+      const liftAnimationPromise = liftEl.animate([
+        { transform: `translateY(${-((floor - 1) * (targetFloorEl.offsetHeight + 20))}px)` }
+      ], {
+        duration: 2000,
+        easing: 'ease-in-out',
+        fill: 'forwards'
+      })
+      liftAnimationPromise.onfinish = () => {
+        this.currentFloor = floor;
+        this.animateLift(handleAnimationEnd, liftEl);
+      }
 
-  public postCompletion(cb: () => void) {
+    }
+  }
+
+  private animateLift(animationEndCB:
+    () => void, liftEl: HTMLElement
+  ): void {
+    const leftDoor = liftEl?.children[0];
+    const rightDoor = liftEl?.children[1];
+    const leftDoorKeyframes = [
+      { marginRight: '0%' },
+      { marginRight: '50%' },
+      { marginRight: '0%' }
+    ];
+
+    const rightDoorKeyframes = [
+      { marginLeft: '0%' },
+      { marginLeft: '50%' },
+      { marginLeft: '0%' }
+    ];
+
+    const animationPromiseLeft = leftDoor.animate(leftDoorKeyframes, {
+      duration: 5000,
+      easing: 'ease-in-out',
+      fill: 'forwards'
+    });
+    const animationPromiseRight = rightDoor.animate(rightDoorKeyframes, {
+      duration: 5000,
+      easing: 'ease-in-out',
+      fill: 'forwards'
+    });
+    animationPromiseLeft.onfinish = () => {
+      animationEndCB()
+    }
+    animationPromiseRight.onfinish = () => {
+      animationEndCB()
+    }
+    setTimeout(() => {
+      animationPromiseLeft.finish();
+      animationPromiseRight.finish();
+    }, 5000)
+  }
+
+  private postCompletion(cb: () => void) {
     cb();
   }
 
   public createLift() {
-    const liftName = `lift-${this.currentFloor}`;
+    const liftName = this.name;
     const liftEl = document.createElement('div');
     liftEl.setAttribute('class', 'lift');
     liftEl.setAttribute('id', liftName);
@@ -133,13 +187,13 @@ class Building {
     numberOfFloors: number,
     numberOfLifts: number,
   ) {
+    this.floors = [];
+    this.lifts = [];
     this.taskQueue = [];
     this.init(numberOfFloors, numberOfLifts);
   }
 
   private init(numberOfFloors: number, numberOfLifts: number) {
-    this.floors = [];
-    this.lifts = [];
     this.createFloors(numberOfFloors)
     this.createLifts(numberOfLifts)
 
@@ -147,16 +201,16 @@ class Building {
 
   private createFloors(numberOfFloors: number) {
     for (let i = numberOfFloors; i > 0; i--) {
-      const isTop = i === numberOfFloors - 1;
-      const isGround = i === 0;
-      const floor = new Floor(isTop, isGround, i, this.assignTask);
+      const isTop = i === numberOfFloors;
+      const isGround = i === 1;
+      const floor = new Floor(isTop, isGround, i, this.assignTask.bind(this));
       this.floors.push(floor);
     }
   }
 
   private createLifts(numberOfLifts: number) {
     for (let i = 0; i < numberOfLifts; i++) {
-      const lift = new Lift(0, 'idle');
+      const lift = new Lift(0, `lift-${i}`, this.processTask.bind(this));
       this.lifts.push(lift);
     }
   }
@@ -179,14 +233,12 @@ class Building {
   public renderBuilding() {
     const building = document.createElement('div');
     building.classList.add('building');
-    console.log({ fl: this.floors, lift: this.lifts })
     const floorContainerEl = document.createElement('div');
     floorContainerEl.setAttribute("class", "floors");
     this.floors.forEach((floor, idx) => {
-      console.log({ floor, idx })
       const floorEl = floor.getFloor().floorEl;
       this.lifts.forEach((lift) => {
-        if (idx === this.floors.length-1) { floorEl.appendChild(lift.createLift()); }
+        if (idx === this.floors.length - 1) { floorEl.appendChild(lift.createLift()); }
       });
       floorContainerEl.appendChild(floorEl);
     });
@@ -196,12 +248,13 @@ class Building {
     simulationContainer.appendChild(building);
   }
 
-  private findNearestLift(targetFloor: number, direction: 'up' | 'down'): number {
+  private findNearestLift(targetFloor: number): number {
     let nearestLiftIndex = -1;
     let minDistance = Infinity;
     this.lifts.forEach((lift, index) => {
       const distance = Math.abs(lift.getCurrentFloor() - targetFloor);
-      if (distance < minDistance && lift.direction === direction) {
+      console.log({ distance, lift , isRunning: lift.isRunning()})
+      if (distance < minDistance && !lift.isRunning()) {
         minDistance = distance;
         nearestLiftIndex = index;
       }
@@ -210,7 +263,7 @@ class Building {
   }
 
   private assignTask(task: Task) {
-    const nearestLiftIndex = this.findNearestLift(task.floor, task.direction);
+    const nearestLiftIndex = this?.findNearestLift(task.floor);
     if (nearestLiftIndex !== -1) {
       const lift = this.lifts[nearestLiftIndex];
       lift.requestToMove(task.floor);
@@ -221,26 +274,23 @@ class Building {
   }
 
   private processTask() {
-    this.taskQueue.forEach((task) => {
-      this.assignTask(task);
-    });
-    this.taskQueue = [];
-  }
-
-  private liftCompletionTask() {
-    this.lifts.forEach((lift) => {
-      if (!lift.isRunning()) {
-        this.processTask();
-      }
-    });
+    const dequedTask = this.taskQueue.shift();
+    if (dequedTask) {
+      this.assignTask(dequedTask);
+    } else {
+      console.log('No tasks in the queue');
+    }
   }
 }
 
+//ignore typescript for the below function
+//@ts-ignore
 function startSimulation(event: Event) {
   event.preventDefault();
-  const floors: any = document.getElementById("floor-nums")?.value;
-  const lifts: any = document.getElementById("lift-nums")?.value;
-  console.log({ floors, lifts })
+  const floorsInput: any = document.getElementById("floor-nums");
+  const liftsInput: any = document.getElementById("lift-nums");
+  const floors = floorsInput.value;
+  const lifts = liftsInput.value;
   const building = new Building(parseInt(floors), parseInt(lifts));
   building.renderBuilding();
 }
