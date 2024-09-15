@@ -207,8 +207,8 @@ class Building {
   }
 
   private createLifts(numberOfLifts: number) {
-    for (let i = 0; i < numberOfLifts; i++) {
-      const lift = new Lift(0, `lift-${i}`, this.processTask.bind(this));
+    for (let i = 1; i <= numberOfLifts; i++) {
+      const lift = new Lift(1, `lift-${i}`, this.processTask.bind(this));
       this.lifts.push(lift);
     }
   }
