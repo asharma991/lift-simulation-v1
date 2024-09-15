@@ -89,7 +89,7 @@ class Lift {
       easing: 'ease-in-out',
       fill: 'forwards'
     });
-    const animationPromiseRight = rightDoor.animate(rightDoorKeyframes, {
+     rightDoor.animate(rightDoorKeyframes, {
       duration: 5000,
       easing: 'ease-in-out',
       fill: 'forwards'
