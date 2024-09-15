@@ -66,7 +66,7 @@ var Lift = /** @class */ (function () {
             easing: 'ease-in-out',
             fill: 'forwards'
         });
-        var animationPromiseRight = rightDoor.animate(rightDoorKeyframes, {
+        rightDoor.animate(rightDoorKeyframes, {
             duration: 5000,
             easing: 'ease-in-out',
             fill: 'forwards'
