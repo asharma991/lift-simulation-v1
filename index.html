@@ -181,25 +181,33 @@
         var _this = this;
         var liftEl = document.getElementById(this.name);
         var targetFloorEl = document.getElementById("floor-".concat(floor));
+
         if (liftEl && targetFloorEl) {
-          var handleAnimationEnd_1 = function () {
+          const floorsToMove = Math.abs(floor - this.currentFloor);
+          const travelTime = floorsToMove * 2000;  // 2 seconds per floor
+
+          const handleAnimationEnd_1 = function () {
             _this._isRunning = false;
             _this.postCompletion(_this.cb);
           };
-          var liftAnimationPromise = liftEl.animate([
-            { transform: "translateY(".concat(-((floor - 1) * (targetFloorEl.offsetHeight + 20)), "px)") }
+
+          const liftAnimationPromise = liftEl.animate([
+            { transform: `translateY(${-(floor - 1) * (targetFloorEl.offsetHeight + 20)}px)` }
           ], {
-            duration: Math.abs(floor - this.currentFloor) * 2000,
+            duration: travelTime,  // Total time based on number of floors
             easing: 'ease-in-out',
             fill: 'forwards'
           });
-          var onFinishAnimation = function () {
+
+          const onFinishAnimation = function () {
             _this.currentFloor = floor;
             _this.animateLift(handleAnimationEnd_1.bind(_this), liftEl);
           };
+
           liftAnimationPromise.onfinish = onFinishAnimation.bind(this);
         }
       };
+
       Lift.prototype.animateLift = function (animationEndCB, liftEl) {
         var leftDoor = liftEl === null || liftEl === void 0 ? void 0 : liftEl.children[0];
         var rightDoor = liftEl === null || liftEl === void 0 ? void 0 : liftEl.children[1];
@@ -262,11 +270,11 @@
         var liftButtonsEl = document.createElement("div");
         liftButtonsEl.setAttribute("class", "lift-buttons");
         liftButtonsEl.setAttribute("id", "floor-button-".concat(this.floorNumber));
-        if (!this.isGround) {
+        if (!this.isTop) {
           var liftCallBtn = this.createButton("up");
           liftButtonsEl.appendChild(liftCallBtn);
         }
-        if (!this.isTop) {
+        if (!this.isGround) {
           var liftCallBtn = this.createButton("down");
           liftButtonsEl.appendChild(liftCallBtn);
         }
@@ -291,6 +299,7 @@
         this.floors = [];
         this.lifts = [];
         this.taskQueue = [];
+        this.floorRequests = {};
         this.init(numberOfFloors, numberOfLifts);
       }
       Building.prototype.init = function (numberOfFloors, numberOfLifts) {
@@ -364,16 +373,32 @@
         return nearestLiftIndex;
       };
       Building.prototype.assignTask = function (task) {
-        var nearestLiftIndex = this === null || this === void 0 ? void 0 : this.findNearestLift(task.floor);
-        if (nearestLiftIndex !== -1) {
-          var lift = this.lifts[nearestLiftIndex];
-          lift.requestToMove(task.floor);
-          // this.animateLift();
+        if (this.floorRequests[task.floor]) {
+          console.log('Request already in progress for this floor');
+          return;
         }
-        else {
+
+        const eligibleLifts = this.lifts.filter(lift => !lift.isRunning());
+
+        if (eligibleLifts.length === 0) {
           this.taskQueue.unshift(task);
           console.log('No lift available');
+          return;
         }
+
+        const nearestLift = eligibleLifts.reduce((prevLift, currLift) => {
+          const prevDistance = Math.abs(prevLift.getCurrentFloor() - task.floor);
+          const currDistance = Math.abs(currLift.getCurrentFloor() - task.floor);
+          return currDistance < prevDistance ? currLift : prevLift;
+        });
+
+        this.floorRequests[task.floor] = true;
+
+        nearestLift.requestToMove(task.floor);
+        nearestLift.cb = () => {
+          delete this.floorRequests[task.floor];
+          this.processTask();
+        };
       };
       Building.prototype.processTask = function () {
         console.log({ tq: this.taskQueue.length });
