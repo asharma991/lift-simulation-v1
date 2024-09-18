@@ -52,7 +52,6 @@
       align-items: center;
       justify-content: center;
       text-align: center;
-      width: max-content;
     }
 
     .floor-container {
@@ -349,6 +348,7 @@
         });
         building.appendChild(floorContainerEl);
         var simulationContainer = document.getElementById("simulation-container");
+        simulationContainer.style.width = "max-content";
         simulationContainer.innerHTML = "";
         simulationContainer.appendChild(building);
       };
