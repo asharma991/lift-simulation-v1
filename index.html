@@ -418,10 +418,6 @@
       event.preventDefault();
       var floorsInput = document.getElementById("floor-nums");
       var liftsInput = document.getElementById("lift-nums");
-      if (parseInt(liftsInput.value) > parseInt(floorsInput.value)) {
-        alert("Lifts can't be more than the number of floors");
-        return;
-      }
       var floors = floorsInput.value;
       var lifts = liftsInput.value;
       var building = new Building(parseInt(floors), parseInt(lifts));
